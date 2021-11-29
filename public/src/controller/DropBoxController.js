@@ -316,7 +316,16 @@ class DropBoxController {
       ${this.getFileIconView(file)}
       <div class="name text-center">${file.name}</div>
     `;
+
+    this.initEventsLi(li);
     return li;
+  }
+
+  initEventsLi(li){
+
+    li.addEventListener('click',e=> {
+      li.classList.toggle('selected');
+    });
   }
 
   readFiles(){
