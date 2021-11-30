@@ -8,16 +8,19 @@ class DropBoxController {
       this.nameFileEl = this.snackModalEl.querySelector(".filename");
       this.timeleftEl = this.snackModalEl.querySelector(".timeleft");
       this.listFilesEl = document.querySelector("#list-of-files-and-directories");
-  
+      
       this.btnNewFolder = document.querySelector("#btn-new-folder");
       this.btnRename = document.querySelector("#btn-rename");
       this.btnDelete = document.querySelector("#btn-delete");
-  
+      
       this.onselectionchange = new Event("selectionchange");
-  
+      
+      this.currentFolder = ['Isaac'];
+      this.navEl = document.querySelector('#browse-location');
+
       this.connectFirebase();
       this.initEvents();
-      this.readFiles();
+      this.openFolder();
     }
   
     connectFirebase() {
@@ -57,6 +60,19 @@ class DropBoxController {
     }
   
     initEvents() {
+
+      this.btnNewFolder.addEventListener('click', e => {
+        let originalFilename = prompt('Nome da nova pasta:');
+  
+        if (originalFilename) {
+          this.getFirebaseRef().push().set({
+            originalFilename, 
+            mimetype: 'folder',
+            filepath: this.currentFolder.join('/')
+          });
+        }
+      });
+    
       this.btnDelete.addEventListener("click", (e) => {
         this.removeTask()
           .then((responses) => {
@@ -128,8 +144,13 @@ class DropBoxController {
       this.btnSendFileEl.disabled = false;
     }
   
-    getFirebaseRef() {
-      return firebase.database().ref("files");
+    getFirebaseRef(filepath) {
+
+      if (!filepath){
+        filepath = this.currentFolder.join('/');
+      }
+
+      return firebase.database().ref(filepath);
     }
   
     modalShow(show = true) {
@@ -400,18 +421,95 @@ class DropBoxController {
     }
   
     readFiles() {
+
+      this.lastFolder = this.currentFolder.join('/');
+
       this.getFirebaseRef().on("value", (snapshot) => {
         this.listFilesEl.innerHTML = "";
         snapshot.forEach((snapshotItem) => {
           let key = snapshotItem.key;
           let data = snapshotItem.val();
+
+          if(data.mimetype){
   
-          this.listFilesEl.appendChild(this.getFileView(data, key));
+            this.listFilesEl.appendChild(this.getFileView(data, key));
+          }
         });
       });
     }
-  
+    
+    openFolder(){
+
+      if (this.lastFolder){
+        this.getFirebaseRef(this.lastFolder).off('value');
+      }
+      this.renderNav();
+      this.readFiles();
+    }
+
+    renderNav(){
+
+      let nav = document.createElement('nav');
+      let i = 0;
+      let path = [];
+
+      for (i; i < this.currentFolder.length; i++){
+        let folderName = this.currentFolder[i];
+        let span = document.createElement('span');
+
+        path.push(folderName);
+
+        if((i + 1) === this.currentFolder.length){
+          
+          span.innerHTML = folderName;
+        } else {
+
+          span.className = 'breadcrumb-segment__wrapper';
+          span.innerHTML = `
+            <span class="ue-effect-container uee-BreadCrumbSegment-link-0">
+                <a href="#" data-path="${path.join('/')}" class="breadcrumb-segment">${folderName}</a>
+              </span>
+              <svg width="24" height="24" viewBox="0 0 24 24" class="mc-icon-template-stateless" style="top: 4px; position: relative;">
+                <title>arrow-right</title>
+                <path d="M10.414 7.05l4.95 4.95-4.95 4.95L9 15.534 12.536 12 9 8.464z" fill="#637282" fill-rule="evenodd"></path>
+              </svg>
+          `
+        }
+
+        nav.appendChild(span);
+      }
+      
+      this.navEl.innerHTML = nav.innerHTML;
+
+      this.navEl.querySelectorAll('a').forEach(a=>{
+        a.addEventListener('click', e=>{
+          e.preventDefault();
+
+          this.currentFolder = a.dataset.path.split('/');
+
+          this.openFolder();
+        });
+      });
+    }
+
     initEventsLi(li) {
+
+      li.addEventListener('dblclick', e=> {
+
+        let file = JSON.parse(li.dataset.file);
+
+        switch (file.mimetype){
+
+          case 'folder':
+            this.currentFolder.push(file.originalFilename);
+            this.openFolder();
+            break;
+
+          default:
+            window.open('file?filepath=' + file.filepath);
+        }
+      });
+
       li.addEventListener("click", (e) => {
         if (e.shiftKey) {
           let firstLi = this.listFilesEl.querySelector(".selected");
