@@ -10,8 +10,8 @@ router.get('/', function(req, res, next) {
 
 router.get('/file', (req, res)=>{
 
-  let path = './' + req.query.filepath;
-
+  let path = req.query.filepath;
+  console.log(path);
   if (fs.existsSync(path)){
     fs.readFile(path, (err, data)=>{
       if (err){
@@ -24,11 +24,10 @@ router.get('/file', (req, res)=>{
       }
     });
   } else {
-    res.status(404).json({
-      error: 'File not found.'
-    });
+      res.status(200).end(data);
+    };
   }
-});
+);
 
 router.delete('/file', (req, res) => {
   let form = new formidable.IncomingForm({
